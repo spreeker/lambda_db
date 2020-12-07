@@ -52,6 +52,9 @@ func BuildGeoIndex() {
 
 //GeoIndex for each items determine S2Cell and store it.
 func (i Item) GeoIndex(idx int) error {
+	if i.GetGeometry() == "" {
+		return fmt.Errorf("missing wkt geometry")
+	}
 	sreader := strings.NewReader(i.GetGeometry())
 	g, err := wkt.Decode(sreader)
 	if err != nil {
@@ -91,37 +94,15 @@ func CalculateCover(geom string) {
 // Simple search algo
 func SearchOverlapItems(items Items, cu s2.CellUnion) Items {
 
-	cellUnion := make([]s2.Cell, 0)
-
-	//Create S2cells from cell id.
-	for _, c := range cu {
-		cell := s2.CellFromCellID(c)
-		cellUnion = append(cellUnion, cell)
-	}
-
 	newItems := make(Items, 0)
 
 	for idx, i := range items {
-		if SearchOverlap(idx, cellUnion) {
+		if cu.ContainsCellID(S2CELLS[idx].ID()) {
 			newItems = append(newItems, i)
 		}
 	}
 
 	return newItems
-}
-
-// SearchOverlap check if any cell of celluntion contains item points
-func SearchOverlap(i int, cu []s2.Cell) bool {
-
-	s2Lock.RLock()
-	defer s2Lock.RUnlock()
-
-	for _, c := range cu {
-		if c.ContainsCell(S2CELLS[i]) {
-			return true
-		}
-	}
-	return false
 }
 
 // GeoIdsAtCells returns all GeoData keys contained in the cells, without duplicates
